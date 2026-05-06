@@ -1,1 +1,35 @@
-/* You can add global styles to this file, and also import other style files */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b1d2a;
+  color: white;
+}
+
+.card {
+  background: #132a3a;
+  padding: 20px;
+  border-radius: 15px;
+  margin-top: 20px;
+}
+
+.forecast {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.forecast-item {
+  background: #132a3a;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.loading {
+  margin-top: 20px;
+}
+
+.error {
+  color: red;
+  margin-top: 20px;
+}

@@ -1,0 +1,29 @@
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.search-box {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+input {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  width: 60%;
+}
+
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  background: #4da6ff;
+  color: white;
+  cursor: pointer;
+}
