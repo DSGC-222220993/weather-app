@@ -1,52 +1,186 @@
-<div class="container">
-
-  <h1>Clima</h1>
-
-  <div class="search-box">
-    <div class="search-row">
-      <input 
-        [(ngModel)]="city"
-        (input)="onInputChange()"
-        (keyup.enter)="searchWeather()"
-        placeholder="Buscar ciudad..."
-      />
-      <button (click)="searchWeather()">Buscar</button>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">☁</div>
+      <span>Weather</span>
     </div>
 
-    <div class="autocomplete" *ngIf="suggestions.length">
-      <div 
-        class="suggestion"
-        *ngFor="let item of suggestions"
-        (mousedown)="selectSuggestion(item)"
-      >
-        <strong>
-          {{ item.name }}
-          <span *ngIf="item.state">- {{ item.state }}</span>
-          , {{ item.country }}
-        </strong>
-        <small>{{ item.lat }}, {{ item.lon }}</small>
+    <button class="nav-btn" [class.active]="activeTab === 'weather'" (click)="setActiveTab('weather')">
+      Weather
+    </button>
+    <button class="nav-btn" [class.active]="activeTab === 'cities'" (click)="setActiveTab('cities')">
+      Cities
+    </button>
+  </aside>
+
+  <main class="main-view">
+    <section class="top-bar">
+      <div>
+        <h1>{{ activeTab === 'weather' ? 'Weather Dashboard' : 'Destinos con buen clima' }}</h1>
+        <p>
+          {{ activeTab === 'weather'
+            ? 'Busca una ciudad y revisa el clima actual, el pronóstico de 5 días y cómo cambia durante el día.'
+            : 'Explora destinos populares con clima agradable. Haz clic para ver su pronóstico.'
+          }}
+        </p>
       </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel panel-search" *ngIf="activeTab === 'weather'">
+        <div class="search-panel">
+          <div class="search-input-wrap">
+            <input
+              [(ngModel)]="city"
+              (input)="onInputChange()"
+              (keyup.enter)="searchWeather()"
+              placeholder="Buscar ciudad..."
+            />
+            <button (click)="searchWeather()">Buscar</button>
+          </div>
+
+          <div class="autocomplete" *ngIf="suggestions.length">
+            <div
+              class="suggestion"
+              *ngFor="let item of suggestions"
+              (mousedown)="selectSuggestion(item)"
+            >
+              <div>
+                <strong>{{ getDisplayName(item) }}</strong>
+                <small>{{ item.lat | number:'1.2-2' }}, {{ item.lon | number:'1.2-2' }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="weather-grid" *ngIf="weatherData">
+          <div class="weather-card current-card">
+            <div class="current-header">
+              <div>
+                <span class="tag">Current</span>
+                <h2>{{ weatherData.name }}, {{ weatherData.sys?.country }}</h2>
+                <p class="subtext">{{ weatherData.weather[0]?.description | titlecase }}</p>
+              </div>
+              <img
+                class="current-icon"
+                [src]="getIconUrl(weatherData.weather[0]?.icon)"
+                [alt]="weatherData.weather[0]?.description"
+              />
+            </div>
+
+            <div class="current-temperature">
+              <strong>{{ weatherData.main.temp | kelvinToCelsius }}°C</strong>
+              <span>Feels like {{ weatherData.main.feels_like | kelvinToCelsius }}°C</span>
+            </div>
+
+            <div class="current-details">
+              <div>
+                <span>Humidity</span>
+                <strong>{{ weatherData.main.humidity }}%</strong>
+              </div>
+              <div>
+                <span>Wind</span>
+                <strong>{{ weatherData.wind.speed }} m/s</strong>
+              </div>
+              <div>
+                <span>Pressure</span>
+                <strong>{{ weatherData.main.pressure }} hPa</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="weather-card air-card">
+            <div class="section-header">
+              <h3>Air condition</h3>
+              <span>Calidad del aire y estado del día</span>
+            </div>
+
+            <div class="condition-items">
+              <div class="condition-item">
+                <span>Real feel</span>
+                <strong>{{ weatherData.main.feels_like | kelvinToCelsius }}°C</strong>
+              </div>
+              <div class="condition-item">
+                <span>Humidity</span>
+                <strong>{{ weatherData.main.humidity }}%</strong>
+              </div>
+              <div class="condition-item">
+                <span>Wind</span>
+                <strong>{{ weatherData.wind.speed }} m/s</strong>
+              </div>
+              <div class="condition-item">
+                <span>Visibility</span>
+                <strong>{{ weatherData.visibility / 1000 | number:'1.0-1' }} km</strong>
+              </div>
+            </div>
+
+            <div class="section-header small">
+              <h3>Today's forecast</h3>
+            </div>
+
+            <div class="timeline-row">
+              <div class="timeline-item" *ngFor="let item of todayForecast">
+                <span>{{ formatTime(item.dt_txt) }}</span>
+                <img [src]="getIconUrl(item.weather[0]?.icon)" [alt]="item.weather[0]?.description" />
+                <strong>{{ item.main.temp | kelvinToCelsius }}°C</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="forecast-panel" *ngIf="forecastData">
+          <div class="section-header">
+            <h3>5-day forecast</h3>
+          </div>
+          <div class="forecast-list">
+            <div class="forecast-card" *ngFor="let item of dailyForecasts">
+              <span>{{ getDayLabel(item.date) }}</span>
+              <img [src]="getIconUrl(item.icon)" [alt]="item.desc" />
+              <strong>{{ item.temp | kelvinToCelsius }}°C</strong>
+              <small>{{ item.desc }}</small>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel panel-cities" *ngIf="activeTab === 'cities'">
+        <p class="cities-intro">Las 5 mejores ciudades famosas para visitar con buen clima.</p>
+        <div class="top-cities">
+          <div class="city-card" *ngFor="let city of topCitiesWeather">
+            <div class="city-card-header">
+              <div>
+                <span class="city-label">{{ city.label }}</span>
+                <h3>{{ city.name || city.label }}</h3>
+              </div>
+              <div class="city-temp">
+                <img
+                  *ngIf="city.weather?.[0]"
+                  [src]="getIconUrl(city.weather[0]?.icon)"
+                  [alt]="city.weather[0]?.description"
+                />
+                <strong *ngIf="city.main">{{ city.main.temp | kelvinToCelsius }}°C</strong>
+              </div>
+            </div>
+
+            <div class="city-card-meta" *ngIf="city.main">
+              <span>{{ city.weather[0]?.main }}</span>
+              <span>{{ city.main.humidity }}% humidity</span>
+            </div>
+
+            <button class="city-action" (click)="viewCityWeather(city.query)">
+              Ver clima
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="page-footer" *ngIf="error">
+      <span class="error-message">{{ error }}</span>
     </div>
-  </div>
 
-  <div *ngIf="loading" class="spinner"></div>
-
-  <div *ngIf="error" class="error">
-    {{ error }}
-  </div>
-
-  <div *ngIf="weatherData" class="card">
-    <h2>{{ weatherData.name }}</h2>
-    <p>{{ weatherData.main.temp | kelvinToCelsius }}°C</p>
-    <p>Sensación: {{ weatherData.main.feels_like | kelvinToCelsius }}°C</p>
-    <p>Humedad: {{ weatherData.main.humidity }}%</p>
-  </div>
-
-  <div *ngIf="forecastData" class="forecast">
-    <div *ngFor="let item of forecastData.list.slice(0,5)" class="forecast-item">
-      <p>{{ item.dt_txt | date:'short' }}</p>
-      <p>{{ item.main.temp | kelvinToCelsius }}°C</p>
+    <div class="loading-overlay" *ngIf="loading">
+      <div class="spinner"></div>
     </div>
-  </div>
-
+  </main>
 </div>
