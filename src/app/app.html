@@ -1,39 +1,51 @@
 <div class="container">
 
-  <h1>Clima 🌤️</h1>
+  <h1>Clima</h1>
 
   <div class="search-box">
-    <input 
-      [(ngModel)]="city" 
-      (keyup.enter)="searchWeather()" 
-      placeholder="Buscar ciudad..."
-    />
-    <button (click)="searchWeather()">Buscar</button>
+    <div class="search-row">
+      <input 
+        [(ngModel)]="city"
+        (input)="onInputChange()"
+        (keyup.enter)="searchWeather()"
+        placeholder="Buscar ciudad..."
+      />
+      <button (click)="searchWeather()">Buscar</button>
+    </div>
+
+    <div class="autocomplete" *ngIf="suggestions.length">
+      <div 
+        class="suggestion"
+        *ngFor="let item of suggestions"
+        (mousedown)="selectSuggestion(item)"
+      >
+        <strong>
+          {{ item.name }}
+          <span *ngIf="item.state">- {{ item.state }}</span>
+          , {{ item.country }}
+        </strong>
+        <small>{{ item.lat }}, {{ item.lon }}</small>
+      </div>
+    </div>
   </div>
 
-  <!-- Loading -->
-  <div *ngIf="loading" class="loading">
-    Cargando...
-  </div>
+  <div *ngIf="loading" class="spinner"></div>
 
-  <!-- Error -->
   <div *ngIf="error" class="error">
     {{ error }}
   </div>
 
-  <!-- Clima actual -->
   <div *ngIf="weatherData" class="card">
     <h2>{{ weatherData.name }}</h2>
-    <p>{{ weatherData.main.temp - 273.15 | number:'1.0-0' }}°C</p>
-    <p>Sensación: {{ weatherData.main.feels_like - 273.15 | number:'1.0-0' }}°C</p>
+    <p>{{ weatherData.main.temp | kelvinToCelsius }}°C</p>
+    <p>Sensación: {{ weatherData.main.feels_like | kelvinToCelsius }}°C</p>
     <p>Humedad: {{ weatherData.main.humidity }}%</p>
   </div>
 
-  <!-- Pronóstico -->
   <div *ngIf="forecastData" class="forecast">
-    <div class="forecast-item" *ngFor="let item of forecastData.list.slice(0,5)">
-      <p>{{ item.dt_txt }}</p>
-      <p>{{ item.main.temp - 273.15 | number:'1.0-0' }}°C</p>
+    <div *ngFor="let item of forecastData.list.slice(0,5)" class="forecast-item">
+      <p>{{ item.dt_txt | date:'short' }}</p>
+      <p>{{ item.main.temp | kelvinToCelsius }}°C</p>
     </div>
   </div>
 
