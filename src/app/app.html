@@ -2,21 +2,21 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-icon">☁</div>
-      <span>Weather</span>
+      <span>Clima</span>
     </div>
 
     <button class="nav-btn" [class.active]="activeTab === 'weather'" (click)="setActiveTab('weather')">
-      Weather
+      Clima
     </button>
     <button class="nav-btn" [class.active]="activeTab === 'cities'" (click)="setActiveTab('cities')">
-      Cities
+      Ciudades
     </button>
   </aside>
 
   <main class="main-view">
     <section class="top-bar">
       <div>
-        <h1>{{ activeTab === 'weather' ? 'Weather Dashboard' : 'Destinos con buen clima' }}</h1>
+        <h1>{{ activeTab === 'weather' ? 'Dashboard de Clima' : 'Destinos con buen clima' }}</h1>
         <p>
           {{ activeTab === 'weather'
             ? 'Busca una ciudad y revisa el clima actual, el pronóstico de 5 días y cómo cambia durante el día.'
@@ -61,7 +61,7 @@
           <div class="weather-card current-card">
             <div class="current-header">
               <div>
-                <span class="tag">Current</span>
+                <span class="tag">Actual</span>
                 <h2>{{ weatherData.name }}, {{ weatherData.sys?.country }}</h2>
                 <p class="subtext">{{ weatherData.weather[0]?.description | titlecase }}</p>
               </div>
@@ -86,20 +86,20 @@
 
             <div class="current-temperature">
               <strong>{{ weatherData.main.temp | kelvinToCelsius }}°C</strong>
-              <span>Feels like {{ weatherData.main.feels_like | kelvinToCelsius }}°C</span>
+              <span>Sensación térmica: {{ weatherData.main.feels_like | kelvinToCelsius }}°C</span>
             </div>
 
             <div class="current-details">
               <div>
-                <span>Humidity</span>
+                <span>Humedad</span>
                 <strong>{{ weatherData.main.humidity }}%</strong>
               </div>
               <div>
-                <span>Wind</span>
+                <span>Viento</span>
                 <strong>{{ weatherData.wind.speed }} m/s</strong>
               </div>
               <div>
-                <span>Pressure</span>
+                <span>Presión</span>
                 <strong>{{ weatherData.main.pressure }} hPa</strong>
               </div>
             </div>
@@ -107,31 +107,31 @@
 
           <div class="weather-card air-card">
             <div class="section-header">
-              <h3>Air condition</h3>
+              <h3>Condiciones</h3>
               <span>Calidad del aire y estado del día</span>
             </div>
 
             <div class="condition-items">
               <div class="condition-item">
-                <span>Real feel</span>
+                <span>Sensación real</span>
                 <strong>{{ weatherData.main.feels_like | kelvinToCelsius }}°C</strong>
               </div>
               <div class="condition-item">
-                <span>Humidity</span>
+                <span>Humedad</span>
                 <strong>{{ weatherData.main.humidity }}%</strong>
               </div>
               <div class="condition-item">
-                <span>Wind</span>
+                <span>Viento</span>
                 <strong>{{ weatherData.wind.speed }} m/s</strong>
               </div>
               <div class="condition-item">
-                <span>Visibility</span>
+                <span>Visibilidad</span>
                 <strong>{{ weatherData.visibility / 1000 | number:'1.0-1' }} km</strong>
               </div>
             </div>
 
             <div class="section-header small">
-              <h3>Today's forecast</h3>
+              <h3>Pronóstico de hoy</h3>
             </div>
 
             <div class="timeline-row">
@@ -146,7 +146,7 @@
 
         <div class="forecast-panel" *ngIf="forecastData">
           <div class="section-header">
-            <h3>5-day forecast</h3>
+            <h3>Pronóstico de 5 días</h3>
           </div>
           <div class="forecast-list">
             <div class="forecast-card" *ngFor="let item of dailyForecasts">
@@ -196,8 +196,8 @@
             </div>
 
             <div class="city-card-meta" *ngIf="city.main">
-              <span>{{ city.weather[0]?.main }}</span>
-              <span>{{ city.main.humidity }}% humidity</span>
+              <span>{{ city.weather[0]?.description | titlecase }}</span>
+              <span>{{ city.main.humidity }}% de humedad</span>
             </div>
 
             <button class="city-action" (click)="openCityModal(city)">
@@ -207,7 +207,6 @@
         </div>
       </article>
 
-      <!-- Modal de clima -->
       <div class="modal-overlay" *ngIf="showCityModal" (click)="closeModal()">
         <div class="modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header-actions">
