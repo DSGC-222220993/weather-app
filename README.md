@@ -1,59 +1,77 @@
-# WeatherApp
+# Weather Con Consumo De Apis Reales
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.9.
+Esta practica es una aplicación web de clima desarrollada con Angular que permite consultar el estado del tiempo en cualquier ciudad del mundo utilizando la API real de OpenWeatherMap.
 
-## Development server
+La aplicación muestra información meteorológica en tiempo real, incluyendo temperatura actual, sensación térmica, humedad, velocidad del viento y pronóstico extendido de 5 días. Además, integra funcionalidades modernas como autocompletado de ciudades, favoritos persistentes y cache de búsquedas recientes para mejorar la experiencia del usuario.
 
-To start a local development server, run:
+## Funcionalidades
 
-```bash
+- Búsqueda de ciudades en tiempo real
+
+- Autocompletado inteligente utilizando la API Geocoding de OpenWeatherMap
+
+- Consulta del clima actual:
+  
+    -Temperatura actual
+    -Sensación térmica
+    -Humedad
+    -Velocidad del viento
+    -Presión atmosférica
+    -Visibilidad
+    -Ícono dinámico según el clima
+
+- Pronóstico extendido de 5 días
+
+- Pronóstico por horas para el día actual
+
+- Sistema de favoritos:
+  
+    Persistencia usando LocalStorage
+
+- Cache de búsquedas recientes para mejorar rendimiento
+
+- Manejo de errores
+
+- Loading states con spinner durante las peticiones HTTP
+
+- Interceptor HTTP para logging basico de solicitudes
+
+- Pipe personalizado para conversión de Kelvin a Celsius
+
+- Interfaz responsive adaptable a diferentes tamaños de pantalla
+
+
+## Tecnologías utilizadas
+
+- Angular
+- TypeScript
+- RxJS
+- Angular HttpClient
+- Angular Pipes
+- Angular Interceptors
+- CSS3
+- OpenWeatherMap API
+- LocalStorage
+
+
+## Notas
+
+- Para que el proyecto funcione correctamente es necesario contar con una API Key válida de OpenWeatherMap
+
+- Los íconos del clima son cargados directamente desde OpenWeatherMap
+
+- Las imágenes de favoritos utilizadas en la interfaz deben existir en la carpeta: public/imagenes/
+
+- La aplicación está desarrollada únicamente para fines académicos y demostrativos
+
+## Preparación del entorno
+
+- Antes de empezar, asegúrate de tener instalado Node.js (versión 18 o superior).
+- Angular CLI instalada de forma global:
+npm install -g @angular/cli
+
+- Ejecutar servidor del desarrollo
 ng serve
-```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- Acceder a la app
+Abre tu navegador en http://localhost:4200/.

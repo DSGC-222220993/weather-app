@@ -1,338 +1,798 @@
-import { Component } from '@angular/core';
-import { Subscription, forkJoin } from 'rxjs';
+import { Component, OnInit } from '@angular/core';
+import { Subject, Observable, of, forkJoin } from 'rxjs';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  switchMap
+} from 'rxjs/operators';
+
 import { WeatherService } from './services/weather';
+import { FavoritesService } from './services/favorites';
+
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
+
 import { KelvinToCelsiusPipe } from './pipes/kelvin-to-celsius-pipe';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, KelvinToCelsiusPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    HttpClientModule,
+    KelvinToCelsiusPipe
+  ],
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
 
-  city: string = '';
+  city = '';
+
   weatherData: any = null;
+
   forecastData: any = null;
+
   loading = false;
+
   error = '';
 
   cache: { [key: string]: any } = {};
+
   recentSearches: string[] = [];
 
   suggestions: any[] = [];
-  private suggestionTimer: number | null = null;
-  private suggestionSubscription: Subscription | null = null;
+
+  suggestionCache: { [key: string]: any[] } = {};
+
+  private searchSubject = new Subject<string>();
 
   activeTab: 'weather' | 'cities' = 'weather';
+
   citiesLoading = false;
 
-  topCities = [
-    { query: 'Barcelona, ES', label: 'Barcelona, Spain' },
-    { query: 'San Francisco, US', label: 'San Francisco, USA' },
-    { query: 'Lisbon, PT', label: 'Lisbon, Portugal' },
-    { query: 'Sydney, AU', label: 'Sydney, Australia' },
-    { query: 'Cape Town, ZA', label: 'Cape Town, South Africa' },
-  ];
+  favoriteCities: any[] = [];
 
-  topCitiesWeather: any[] = [];
+  showCityModal = false;
 
-  constructor(private weatherService: WeatherService) {}
+  selectedCityForModal: any = null;
 
-  setActiveTab(tab: 'weather' | 'cities') {
-    this.activeTab = tab;
-    if (tab === 'cities' && !this.topCitiesWeather.length) {
-      this.loadTopCities();
-    }
+  modalWeatherData: any = null;
+
+  modalForecastData: any = null;
+
+  modalLoading = false;
+
+  currentSearchQuery = '';
+
+  currentSearchItem: any = null;
+
+  initialLoad = true;
+
+  constructor(
+    private weatherService: WeatherService,
+    public favoritesService: FavoritesService
+  ) {}
+
+  ngOnInit() {
+
+    this.loadFavorites();
+
+    this.searchSubject.pipe(
+
+      debounceTime(150),
+
+      distinctUntilChanged(),
+
+      switchMap(value => {
+
+        if (this.suggestionCache[value]) {
+
+          return of(this.suggestionCache[value]);
+
+        }
+
+        return this.weatherService.searchCities(value);
+
+      })
+
+    ).subscribe(data => {
+
+      if (!data?.length) {
+
+        this.suggestions = [];
+
+        return;
+
+      }
+
+      const filtered = this.filterSuggestions(
+        data,
+        this.city
+      );
+
+      const sorted = this.sortSuggestions(
+        filtered,
+        this.city
+      ).slice(0, 5);
+
+      this.suggestions = sorted;
+
+      this.suggestionCache[
+        this.city.toLowerCase()
+      ] = sorted;
+
+    });
+
+    this.city = 'Hermosillo,mx';
+
+    this.searchWeather(
+      'Hermosillo,mx',
+      true
+    );
+
   }
 
-  private loadTopCities() {
+  setActiveTab(tab: 'weather' | 'cities') {
+
+    this.activeTab = tab;
+
+    if (tab === 'cities') {
+
+      this.loadFavoriteCities();
+
+    }
+
+  }
+
+  private loadFavorites() {
+
+    this.favoritesService.favorites$.subscribe(() => {
+
+      if (this.activeTab === 'cities') {
+
+        this.loadFavoriteCities();
+
+      }
+
+    });
+
+  }
+
+  private loadFavoriteCities() {
+
+    const favorites =
+      this.favoritesService.getFavorites();
+
+    if (!favorites.length) {
+
+      this.favoriteCities = [];
+
+      this.citiesLoading = false;
+
+      return;
+
+    }
+
     this.citiesLoading = true;
-    this.topCitiesWeather = this.topCities.map(city => ({
-      label: city.label,
+
+    this.favoriteCities = favorites.map(city => ({
+      ...city,
       loading: true,
-      query: city.query,
     }));
 
     let finished = 0;
+
     const checkpoint = () => {
-      finished += 1;
-      if (finished === this.topCities.length) {
+
+      finished++;
+
+      if (finished === favorites.length) {
+
         this.citiesLoading = false;
+
       }
+
     };
 
-    this.topCities.forEach((city, index) => {
-      this.weatherService.getWeather(city.query).subscribe({
-        next: (data) => {
-          this.topCitiesWeather[index] = {
-            ...data,
-            label: city.label,
-            query: city.query,
-          };
-          checkpoint();
-        },
-        error: () => {
-          this.topCitiesWeather[index] = {
-            label: city.label,
-            query: city.query,
-            error: true,
-          };
-          checkpoint();
-        },
-        complete: () => {}
-      });
+    favorites.forEach((city, index) => {
+
+      this.weatherService.getWeather(city.query)
+        .subscribe({
+
+          next: (data) => {
+
+            this.favoriteCities[index] = {
+              ...data,
+              label: city.label,
+              query: city.query,
+            };
+
+            checkpoint();
+
+          },
+
+          error: () => {
+
+            this.favoriteCities[index] = {
+              label: city.label,
+              query: city.query,
+              error: true,
+            };
+
+            checkpoint();
+
+          }
+
+        });
+
     });
+
   }
 
-  // BUSCAR CLIMA
-  searchWeather(cityParam?: string) {
-    const city = (cityParam || this.city).trim().toLowerCase();
+  searchWeather(
+    cityParam?: string,
+    silent = false
+  ) {
+
+    const city = (cityParam || this.city)
+      .trim()
+      .toLowerCase();
+
     if (!city) return;
 
     this.city = city;
+
+    this.currentSearchQuery = city;
+
     this.error = '';
+
     this.suggestions = [];
 
     if (this.cache[city]) {
+
+      this.weatherData =
+        this.cache[city].weather;
+
+      this.forecastData =
+        this.cache[city].forecast;
+
       this.loading = false;
-      this.weatherData = this.cache[city].weather;
-      this.forecastData = this.cache[city].forecast;
+
       this.addToRecent(city);
+
       return;
+
     }
 
-    this.loading = true;
-    this.weatherData = null;
-    this.forecastData = null;
+    if (!silent) {
 
-    forkJoin({
-      weather: this.weatherService.getWeather(city),
-      forecast: this.weatherService.getForecast(city)
-    }).subscribe({
-      next: ({ weather, forecast }) => {
-        this.weatherData = weather;
-        this.forecastData = forecast;
+      this.loading = true;
 
-        this.cache[city] = {
-          weather: weather,
-          forecast: forecast
-        };
-
-        this.addToRecent(city);
-        this.loading = false;
-      },
-      error: (err) => {
-        this.error = err.status === 404 
-          ? 'Ciudad no encontrada' 
-          : 'Error de conexión';
-        this.loading = false;
-      }
-    });
-  }
-
-  getIconUrl(icon: string | undefined) {
-    if (!icon) {
-      return 'https://openweathermap.org/img/wn/01d@2x.png';
-    }
-    return `https://openweathermap.org/img/wn/${icon}@2x.png`;
-  }
-
-  getDayLabel(date: string) {
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'short',
-    });
-  }
-
-  formatTime(date: string) {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  }
-
-  get todayForecast() {
-    if (!this.forecastData?.list?.length) {
-      return [];
     }
 
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const todayItems = this.forecastData.list.filter((item: any) => item.dt_txt.startsWith(todayKey));
-    const targetTimes = ['06:00:00', '09:00:00', '12:00:00', '15:00:00', '18:00:00', '21:00:00'];
+    this.weatherService.getWeather(city)
+      .subscribe({
 
-    return targetTimes.map((time) => {
-      return (
-        todayItems.find((item: any) => item.dt_txt.endsWith(time)) ||
-        todayItems.find((item: any) => item.dt_txt.includes('12:00:00')) ||
-        todayItems[0]
-      );
-    }).filter(Boolean);
+        next: (weather) => {
+
+          this.weatherData = weather;
+
+          this.loading = false;
+
+          this.initialLoad = false;
+
+          this.addToRecent(city);
+
+          this.cache[city] = {
+            weather,
+            forecast: null
+          };
+
+          this.weatherService.getForecast(city)
+            .subscribe({
+
+              next: (forecast) => {
+
+                this.forecastData = forecast;
+
+                this.cache[city].forecast =
+                  forecast;
+
+              },
+
+              error: () => {
+
+                this.forecastData = null;
+
+              }
+
+            });
+
+        },
+
+        error: (err) => {
+
+          this.loading = false;
+
+          this.initialLoad = false;
+
+          this.error =
+            err.status === 404
+              ? 'Ciudad no encontrada'
+              : 'Error de conexión';
+
+        }
+
+      });
+
   }
 
-  get dailyForecasts() {
-    if (!this.forecastData?.list?.length) {
-      return [];
-    }
-
-    const groups: Record<string, any[]> = {};
-    this.forecastData.list.forEach((item: any) => {
-      const date = item.dt_txt.split(' ')[0];
-      groups[date] = groups[date] || [];
-      groups[date].push(item);
-    });
-
-    return Object.keys(groups).slice(0, 5).map((date) => {
-      const dayItems = groups[date];
-      const highlight = dayItems.find((item) => item.dt_txt.includes('12:00:00')) || dayItems[Math.floor(dayItems.length / 2)];
-      const minTemp = Math.min(...dayItems.map((item: any) => item.main.temp_min));
-      const maxTemp = Math.max(...dayItems.map((item: any) => item.main.temp_max));
-
-      return {
-        date,
-        icon: highlight.weather[0]?.icon,
-        desc: highlight.weather[0]?.main,
-        temp: highlight.main.temp,
-        min: minTemp,
-        max: maxTemp,
-      };
-    });
-  }
-
-  // AUTOCOMPLETE 
   onInputChange() {
-    const value = this.city.trim();
 
-    if (!value) {
+    const value =
+      this.city.trim().toLowerCase();
+
+    if (value.length < 2) {
+
       this.suggestions = [];
-      this.clearSuggestionQuery();
+
       return;
+
     }
 
-    if (this.suggestionTimer) {
-      clearTimeout(this.suggestionTimer);
+    if (
+      value ===
+      this.currentSearchQuery.toLowerCase()
+    ) {
+
+      return;
+
     }
 
-    this.suggestionTimer = window.setTimeout(() => {
-      this.loadSuggestions(value);
-    }, 250);
+    if (this.suggestionCache[value]) {
+
+      this.suggestions =
+        this.suggestionCache[value];
+
+      return;
+
+    }
+
+    this.searchSubject.next(value);
+
   }
 
-  private loadSuggestions(value: string) {
-    if (this.suggestionSubscription) {
-      this.suggestionSubscription.unsubscribe();
-      this.suggestionSubscription = null;
-    }
+  private filterSuggestions(
+    data: any[],
+    query: string
+  ) {
 
-    this.suggestionSubscription = this.weatherService.searchCities(value).subscribe({
-      next: (data) => {
-        const filtered = this.filterSuggestions(data, value);
-        this.suggestions = this.sortSuggestions(filtered, value);
-      },
-      error: () => {
-        this.suggestions = [];
+    const q =
+      query.toLowerCase().trim();
+
+    const unique = new Map();
+
+    data.forEach(item => {
+
+      const name =
+        item.name?.toLowerCase() || '';
+
+      if (!name.startsWith(q)) {
+
+        return;
+
       }
+
+      const key =
+        `${item.name}-${item.country}`;
+
+      if (!unique.has(key)) {
+
+        unique.set(key, item);
+
+      }
+
     });
+
+    return Array.from(unique.values());
+
   }
 
-  private clearSuggestionQuery() {
-    if (this.suggestionTimer) {
-      clearTimeout(this.suggestionTimer);
-      this.suggestionTimer = null;
-    }
+  private sortSuggestions(
+    data: any[],
+    query: string
+  ): any[] {
 
-    if (this.suggestionSubscription) {
-      this.suggestionSubscription.unsubscribe();
-      this.suggestionSubscription = null;
-    }
-  }
-
-  private filterSuggestions(data: any[], query: string) {
     const q = query.toLowerCase();
 
-    const exactPrefix = data.filter(item => {
-      const matchKeys = this.getSuggestionKeys(item);
-      return matchKeys.some(key => key.startsWith(q));
-    });
+    return data.sort((a, b) => {
 
-    if (exactPrefix.length) {
-      return exactPrefix;
-    }
+      const aName = a.name.toLowerCase();
 
-    return data.filter(item => {
-      const matchKeys = this.getSuggestionKeys(item);
-      return matchKeys.some(key => key.includes(q));
-    });
-  }
+      const bName = b.name.toLowerCase();
 
-  private getSuggestionKeys(item: any) {
-    const keys = [] as string[];
-    const name = item.name?.toLowerCase() ?? '';
-    const state = item.state?.toLowerCase() ?? '';
-    const country = item.country?.toLowerCase() ?? '';
+      if (aName === q) return -1;
 
-    keys.push(name, state, country);
-    Object.values(item.local_names ?? {}).forEach((value: any) => {
-      if (typeof value === 'string') {
-        keys.push(value.toLowerCase());
+      if (bName === q) return 1;
+
+      if (
+        a.country === 'MX' &&
+        b.country !== 'MX'
+      ) {
+
+        return -1;
+
       }
+
+      if (
+        a.country !== 'MX' &&
+        b.country === 'MX'
+      ) {
+
+        return 1;
+
+      }
+
+      return aName.length - bName.length;
+
     });
 
-    return keys;
-  }
-
-  private sortSuggestions(data: any[], query: string) {
-    const q = query.toLowerCase();
-    return [...data].sort((a, b) => {
-      const aScore = this.suggestionScore(a, q);
-      const bScore = this.suggestionScore(b, q);
-      return aScore - bScore;
-    });
-  }
-
-  private suggestionScore(item: any, query: string) {
-    const keys = this.getSuggestionKeys(item);
-    if (keys.some(key => key.startsWith(query))) {
-      return 0;
-    }
-    if (keys.some(key => key.includes(` ${query}`))) {
-      return 1;
-    }
-    return 2;
   }
 
   getDisplayName(item: any) {
-    const localName = item.local_names?.es || item.local_names?.en || item.name;
+
+    const localName =
+      item.local_names?.es ||
+      item.local_names?.en ||
+      item.name;
+
     return item.state
       ? `${localName}, ${item.state}, ${item.country}`
       : `${localName}, ${item.country}`;
+
   }
 
-  // SELECCIONAR SUGERENCIA
+  getItemQuery(item: any): string {
+
+    return item.state
+      ? `${item.name}, ${item.state}, ${item.country}`
+      : `${item.name}, ${item.country}`;
+
+  }
+
   selectSuggestion(item: any) {
+
     const cityName = item.state
       ? `${item.name}, ${item.state}, ${item.country}`
       : `${item.name}, ${item.country}`;
 
+    this.currentSearchQuery = cityName;
+
+    this.currentSearchItem = item;
+
     this.city = cityName;
+
     this.searchWeather(cityName);
+
+  }
+
+  getIconUrl(icon: string | undefined) {
+
+    if (!icon) {
+
+      return 'https://openweathermap.org/img/wn/01d@2x.png';
+
+    }
+
+    return `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+  }
+
+  getDayLabel(date: string) {
+
+    return new Date(date)
+      .toLocaleDateString('en-US', {
+        weekday: 'short',
+      });
+
+  }
+
+  formatTime(date: string) {
+
+    return new Date(date)
+      .toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
+  }
+
+  get todayForecast() {
+
+    if (!this.forecastData?.list?.length) {
+
+      return [];
+
+    }
+
+    const todayKey =
+      new Date().toISOString().slice(0, 10);
+
+    const todayItems =
+      this.forecastData.list.filter(
+        (item: any) =>
+          item.dt_txt.startsWith(todayKey)
+      );
+
+    const targetTimes = [
+      '06:00:00',
+      '09:00:00',
+      '12:00:00',
+      '15:00:00',
+      '18:00:00',
+      '21:00:00'
+    ];
+
+    return targetTimes.map((time) => {
+
+      return (
+        todayItems.find(
+          (item: any) =>
+            item.dt_txt.endsWith(time)
+        ) ||
+        todayItems[0]
+      );
+
+    }).filter(Boolean);
+
+  }
+
+  get dailyForecasts() {
+
+    if (!this.forecastData?.list?.length) {
+
+      return [];
+
+    }
+
+    const groups: Record<string, any[]> = {};
+
+    this.forecastData.list.forEach((item: any) => {
+
+      const date =
+        item.dt_txt.split(' ')[0];
+
+      groups[date] =
+        groups[date] || [];
+
+      groups[date].push(item);
+
+    });
+
+    return Object.keys(groups)
+      .slice(0, 5)
+      .map((date) => {
+
+        const dayItems = groups[date];
+
+        const highlight =
+          dayItems.find(
+            (item) =>
+              item.dt_txt.includes('12:00:00')
+          ) || dayItems[0];
+
+        return {
+          date,
+          icon: highlight.weather[0]?.icon,
+          desc: highlight.weather[0]?.main,
+          temp: highlight.main.temp,
+        };
+
+      });
+
+  }
+
+  toggleFavoriteFromSearch() {
+
+    if (
+      !this.currentSearchQuery ||
+      !this.weatherData
+    ) return;
+
+    const displayName =
+      `${this.weatherData.name}, ${this.weatherData.sys?.country}`;
+
+    this.favoritesService.toggleFavorite({
+      query: this.currentSearchQuery,
+      label: displayName,
+      name: this.weatherData.name,
+    });
+
+  }
+
+  isFavoritedInSearch(): boolean {
+
+    if (!this.currentSearchQuery) {
+
+      return false;
+
+    }
+
+    return this.favoritesService.isFavorite(
+      this.currentSearchQuery
+    );
+
+  }
+
+  toggleFavoriteCity(
+    query: string,
+    item: any
+  ) {
+
+    const displayName =
+      item.label || query;
+
+    this.favoritesService.toggleFavorite({
+      query,
+      label: displayName,
+      name: item.name,
+    });
+
+  }
+
+  openCityModal(city: any) {
+
+    this.selectedCityForModal = city;
+
+    this.showCityModal = true;
+
+    this.loadModalWeather(city.query);
+
+  }
+
+  private loadModalWeather(cityQuery: string) {
+
+    this.modalLoading = true;
+
+    forkJoin({
+      weather:
+        this.weatherService.getWeather(cityQuery),
+
+      forecast:
+        this.weatherService.getForecast(cityQuery)
+    }).subscribe({
+
+      next: ({ weather, forecast }) => {
+
+        this.modalWeatherData = weather;
+
+        this.modalForecastData = forecast;
+
+        this.modalLoading = false;
+
+      },
+
+      error: () => {
+
+        this.modalLoading = false;
+
+      }
+
+    });
+
+  }
+
+  closeModal() {
+
+    this.showCityModal = false;
+
+    this.selectedCityForModal = null;
+
+    this.modalWeatherData = null;
+
+    this.modalForecastData = null;
+
   }
 
   addToRecent(city: string) {
-    this.recentSearches = this.recentSearches.filter(c => c !== city);
+
+    this.recentSearches =
+      this.recentSearches.filter(
+        c => c !== city
+      );
+
     this.recentSearches.unshift(city);
 
     if (this.recentSearches.length > 5) {
+
       this.recentSearches.pop();
+
     }
+
   }
 
-  viewCityWeather(cityQuery: string) {
-    this.setActiveTab('weather');
-    this.searchWeather(cityQuery);
+  toggleFavoriteModal() {
+
+    if (!this.selectedCityForModal) return;
+
+    this.favoritesService.toggleFavorite({
+      query: this.selectedCityForModal.query,
+      label: this.selectedCityForModal.label,
+      name: this.selectedCityForModal.name,
+    });
+
+    this.loadFavoriteCities();
+
+    if (!this.isFavoriteModal()) {
+
+      this.closeModal();
+
+    }
+
+  }
+
+  isFavoriteModal(): boolean {
+
+    if (!this.selectedCityForModal) {
+
+      return false;
+
+    }
+
+    return this.favoritesService.isFavorite(
+      this.selectedCityForModal.query
+    );
+
+  }
+
+  getModalTodayForecast() {
+
+    if (!this.modalForecastData?.list?.length) {
+
+      return [];
+
+    }
+
+    const todayKey = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    const todayItems =
+      this.modalForecastData.list.filter(
+        (item: any) =>
+          item.dt_txt.startsWith(todayKey)
+      );
+
+    const targetTimes = [
+      '06:00:00',
+      '09:00:00',
+      '12:00:00',
+      '15:00:00',
+      '18:00:00',
+      '21:00:00'
+    ];
+
+    return targetTimes.map((time) => {
+
+      return (
+        todayItems.find(
+          (item: any) =>
+            item.dt_txt.endsWith(time)
+        ) ||
+
+        todayItems.find(
+          (item: any) =>
+            item.dt_txt.includes('12:00:00')
+        ) ||
+
+        todayItems[0]
+      );
+
+    }).filter(Boolean);
+
   }
 }

@@ -31,23 +31,27 @@
         <div class="search-panel">
           <div class="search-input-wrap">
             <input
+              type="text"
               [(ngModel)]="city"
               (input)="onInputChange()"
-              (keyup.enter)="searchWeather()"
+              autocomplete="off"
+              spellcheck="false"
               placeholder="Buscar ciudad..."
             />
             <button (click)="searchWeather()">Buscar</button>
-          </div>
 
-          <div class="autocomplete" *ngIf="suggestions.length">
-            <div
-              class="suggestion"
-              *ngFor="let item of suggestions"
-              (mousedown)="selectSuggestion(item)"
-            >
-              <div>
-                <strong>{{ getDisplayName(item) }}</strong>
-                <small>{{ item.lat | number:'1.2-2' }}, {{ item.lon | number:'1.2-2' }}</small>
+            <div class="autocomplete" *ngIf="suggestions.length">
+              <div
+                class="suggestion"
+                *ngFor="let item of suggestions"
+                (mousedown)="selectSuggestion(item)"
+              >
+                <div>
+                  <strong>{{ getDisplayName(item) }}</strong>
+                  <small>
+                    {{ item.state ? item.state + ', ' : '' }}{{ item.country }}
+                  </small>
+                </div>
               </div>
             </div>
           </div>
@@ -61,11 +65,23 @@
                 <h2>{{ weatherData.name }}, {{ weatherData.sys?.country }}</h2>
                 <p class="subtext">{{ weatherData.weather[0]?.description | titlecase }}</p>
               </div>
-              <img
-                class="current-icon"
-                [src]="getIconUrl(weatherData.weather[0]?.icon)"
-                [alt]="weatherData.weather[0]?.description"
-              />
+              <div class="current-header-actions">
+                <img
+                  class="current-icon"
+                  [src]="getIconUrl(weatherData.weather[0]?.icon)"
+                  [alt]="weatherData.weather[0]?.description"
+                />
+                <button 
+                  class="favorite-btn-current"
+                  (click)="toggleFavoriteFromSearch()"
+                  [class.favorited]="isFavoritedInSearch()"
+                >
+                  <img 
+                    [src]="isFavoritedInSearch() ? 'imagenes/ic_favorite.png' : 'imagenes/ic_unfavorite.png'" 
+                    [alt]="isFavoritedInSearch() ? 'Favorito' : 'No favorito'"
+                  />
+                </button>
+              </div>
             </div>
 
             <div class="current-temperature">
@@ -144,21 +160,38 @@
       </article>
 
       <article class="panel panel-cities" *ngIf="activeTab === 'cities'">
-        <p class="cities-intro">Las 5 mejores ciudades famosas para visitar con buen clima.</p>
+        <p class="cities-intro" *ngIf="!favoriteCities.length">
+          No tienes ciudades favoritas. Agrega una ciudad desde el buscador haciendo clic en la estrella.
+        </p>
+        <p class="cities-intro" *ngIf="favoriteCities.length">
+          {{ favoriteCities.length }} ciudad(es) en tus favoritos.
+        </p>
         <div class="top-cities">
-          <div class="city-card" *ngFor="let city of topCitiesWeather">
+          <div class="city-card" *ngFor="let city of favoriteCities">
             <div class="city-card-header">
               <div>
                 <span class="city-label">{{ city.label }}</span>
                 <h3>{{ city.name || city.label }}</h3>
               </div>
-              <div class="city-temp">
-                <img
-                  *ngIf="city.weather?.[0]"
-                  [src]="getIconUrl(city.weather[0]?.icon)"
-                  [alt]="city.weather[0]?.description"
-                />
-                <strong *ngIf="city.main">{{ city.main.temp | kelvinToCelsius }}°C</strong>
+              <div class="city-card-actions">
+                <div class="city-temp">
+                  <img
+                    *ngIf="city.weather?.[0]"
+                    [src]="getIconUrl(city.weather[0]?.icon)"
+                    [alt]="city.weather[0]?.description"
+                  />
+                  <strong *ngIf="city.main">{{ city.main.temp | kelvinToCelsius }}°C</strong>
+                </div>
+                <button 
+                  class="favorite-btn-city"
+                  (click)="toggleFavoriteCity(city.query, city)"
+                  [class.favorited]="true"
+                >
+                  <img 
+                    src="imagenes/ic_favorite.png" 
+                    alt="Remover de favoritos"
+                  />
+                </button>
               </div>
             </div>
 
@@ -167,19 +200,91 @@
               <span>{{ city.main.humidity }}% humidity</span>
             </div>
 
-            <button class="city-action" (click)="viewCityWeather(city.query)">
+            <button class="city-action" (click)="openCityModal(city)">
               Ver clima
             </button>
           </div>
         </div>
       </article>
+
+      <!-- Modal de clima -->
+      <div class="modal-overlay" *ngIf="showCityModal" (click)="closeModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header-actions">
+            <button 
+              class="favorite-btn-modal"
+              (click)="toggleFavoriteModal()"
+              [class.favorited]="isFavoriteModal()"
+            >
+              <img 
+                [src]="isFavoriteModal() ? 'imagenes/ic_favorite.png' : 'imagenes/ic_unfavorite.png'" 
+                [alt]="isFavoriteModal() ? 'Favorito' : 'No favorito'"
+              />
+            </button>
+            <button class="modal-close" (click)="closeModal()">×</button>
+          </div>
+          
+          <div *ngIf="modalLoading" class="modal-loading">
+            <div class="spinner"></div>
+          </div>
+
+          <div *ngIf="!modalLoading && modalWeatherData" class="modal-weather">
+            <div class="modal-header">
+              <div>
+                <h2>{{ modalWeatherData.name }}, {{ modalWeatherData.sys?.country }}</h2>
+                <p class="subtext">{{ modalWeatherData.weather[0]?.description | titlecase }}</p>
+              </div>
+              <img
+                class="modal-icon"
+                [src]="getIconUrl(modalWeatherData.weather[0]?.icon)"
+                [alt]="modalWeatherData.weather[0]?.description"
+              />
+            </div>
+
+            <div class="modal-temperature">
+              <strong>{{ modalWeatherData.main.temp | kelvinToCelsius }}°C</strong>
+              <span>Sensación térmica: {{ modalWeatherData.main.feels_like | kelvinToCelsius }}°C</span>
+            </div>
+
+            <div class="modal-details">
+              <div class="detail-item">
+                <span>Humedad</span>
+                <strong>{{ modalWeatherData.main.humidity }}%</strong>
+              </div>
+              <div class="detail-item">
+                <span>Viento</span>
+                <strong>{{ modalWeatherData.wind.speed }} m/s</strong>
+              </div>
+              <div class="detail-item">
+                <span>Presión</span>
+                <strong>{{ modalWeatherData.main.pressure }} hPa</strong>
+              </div>
+              <div class="detail-item">
+                <span>Visibilidad</span>
+                <strong>{{ modalWeatherData.visibility / 1000 | number:'1.0-1' }} km</strong>
+              </div>
+            </div>
+
+            <div class="modal-today-forecast" *ngIf="modalForecastData?.list">
+              <h3>Pronóstico por horas</h3>
+              <div class="timeline-row">
+                <div class="timeline-item" *ngFor="let item of getModalTodayForecast()">
+                  <span>{{ formatTime(item.dt_txt) }}</span>
+                  <img [src]="getIconUrl(item.weather[0]?.icon)" [alt]="item.weather[0]?.description" />
+                  <strong>{{ item.main.temp | kelvinToCelsius }}°C</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <div class="page-footer" *ngIf="error">
       <span class="error-message">{{ error }}</span>
     </div>
 
-    <div class="loading-overlay" *ngIf="loading">
+    <div class="loading-overlay" *ngIf="loading && !weatherData">
       <div class="spinner"></div>
     </div>
   </main>

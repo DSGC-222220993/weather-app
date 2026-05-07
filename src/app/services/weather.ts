@@ -26,10 +26,28 @@ export class WeatherService {
     ).pipe(catchError(err => throwError(() => err)));
   }
 
-  // 🔥 NUEVO: AUTOCOMPLETE REAL
-  searchCities(query: string): Observable<any> {
-    return this.http.get(
-      `${this.geoUrl}/direct?q=${query}&limit=5&appid=${this.apiKey}`
-    ).pipe(catchError(err => throwError(() => err)));
+  searchCities(query: string): Observable<any[]> {
+
+    const cleanQuery = query.trim();
+
+    if (cleanQuery.length < 2) {
+      return new Observable(observer => {
+        observer.next([]);
+        observer.complete();
+      });
+    }
+
+    return this.http.get<any[]>(
+      `${this.geoUrl}/direct?q=${cleanQuery}&limit=10&appid=${this.apiKey}`
+    ).pipe(
+
+      catchError(() => {
+        return new Observable<any[]>(observer => {
+          observer.next([]);
+          observer.complete();
+        });
+      })
+
+    );
   }
 }
