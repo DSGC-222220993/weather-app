@@ -369,6 +369,9 @@ button:hover {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 22px;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
@@ -382,6 +385,7 @@ button:hover {
   width: 44px;
   height: 44px;
   margin-bottom: 8px;
+  display: block;
 }
 
 .timeline-item strong {
@@ -406,6 +410,9 @@ button:hover {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 24px;
   padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
@@ -419,6 +426,7 @@ button:hover {
   width: 52px;
   height: 52px;
   margin-bottom: 10px;
+  display: block;
 }
 
 .forecast-card strong {
@@ -585,7 +593,6 @@ button:hover {
   }
 }
 
-/* Favoritos */
 .favorite-btn {
   border: none;
   background: transparent;
@@ -671,7 +678,6 @@ button:hover {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -687,7 +693,7 @@ button:hover {
   background: linear-gradient(135deg, rgba(12, 24, 45, 0.98) 0%, rgba(14, 27, 47, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 32px;
-  padding: 32px 32px 32px 32px;
+  padding: 32px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
@@ -721,8 +727,6 @@ button:hover {
 
 .favorite-btn-modal:hover {
   background: rgba(255, 255, 255, 0.089);
-  width: 40px;
-  height: 40px;
 }
 
 .favorite-btn-modal img {
@@ -795,9 +799,7 @@ button:hover {
   height: 220px;
   flex-shrink: 0;
   display: block;
-  margin-top: 25px;
-  margin-right: auto;
-  margin-left: auto;
+  margin: 25px auto 0;
   filter: drop-shadow(0 10px 25px rgba(0,0,0,0.35));
 }
 
@@ -810,7 +812,6 @@ button:hover {
 
 .modal-temperature strong {
   font-size: 2.5rem;
-  
 }
 
 .modal-temperature span {
